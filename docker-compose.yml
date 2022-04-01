@@ -1,0 +1,48 @@
+services:
+   asterisk:
+     build:
+      context: ./asterisk
+      dockerfile: asterisk.dockerfile
+     deploy:
+       mode: replicated
+       replicas: 1
+     ports:
+       - 10002-10200:10002-10200/udp
+     networks:
+      kamailio-asterisk:
+        ipv4_address: 192.168.167.2
+   kamailio_dispatcher:
+     depends_on:
+       - asterisk
+       - kamailio_pg
+     build:
+      context: ./kamailio
+      dockerfile: kamailio.dockerfile
+     volumes:
+      - ./kamailio/etc:/etc/kamailio
+     ports:
+       - "5060:5060/udp"
+     restart: always
+     networks:
+      kamailio-asterisk:
+        ipv4_address: 192.168.167.3
+   kamailio_pg:
+     build:
+      context: ./postgresql
+      dockerfile: postgres.dockerfile
+     ports:
+      - "5435:5432/tcp"
+     environment:
+       - POSTGRES_PASSWORD=notkamailio
+       - POSTGRES_DB=kamailio
+     networks:
+      kamailio-asterisk:
+        ipv4_address: 192.168.167.4
+
+networks:
+  kamailio-asterisk:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.167.0/24
+         gateway: 192.168.167.1
